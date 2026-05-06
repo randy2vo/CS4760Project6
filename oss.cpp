@@ -1,3 +1,30 @@
+/*
+ * Author: Randy Vo
+ * Date: May 2026
+ * Course: CS 4760 - Operating Systems
+ * Assignment 6 - Memory Management / FIFO Page Replacement
+ *
+ * oss.cpp
+ * Main OS simulator. Manages a 64-frame physical memory space shared among
+ * up to 18 worker processes. Each worker has a 16-page (16 KB) logical address
+ * space with a 1 KB page size. When a worker requests a memory address, oss
+ * checks if the page is already in a frame (page hit) or must be loaded from
+ * disk (page fault). On a fault, the process is blocked for a simulated 14 ms
+ * disk I/O delay. If all frames are full, the oldest loaded frame is evicted
+ * using FIFO. If the evicted frame was written to (dirty bit set), an extra
+ * 14 ms write-back penalty is added to the clock. oss also handles a "soft
+ * deadlock" condition where all processes are simultaneously waiting for disk
+ * I/O by advancing the simulated clock to the nearest unblock time.
+ *
+ * IPC used:
+ *   - One shared memory segment for the simulated clock (SimClock)
+ *   - One System V message queue for all oss <-> worker communication
+ *
+ * Message protocol:
+ *   oss -> worker:  mtype = worker's real PID, action = 999 (dispatch/ack)
+ *   worker -> oss:  mtype = 1, action = 0 (terminate) | 1 (read) | 2 (write)
+ */
+
 #include <iostream>
 #include <iomanip>
 #include <string>
@@ -1016,11 +1043,13 @@ int main(int argc, char* argv[]) {
                 return 0;
             case 'n':
                 n = atoi(optarg);
-                if (n <= 0) { cerr << "Error: -n must be > 0\n"; return 1; }
+                if (n <= 0)  { cerr << "Error: -n must be > 0\n";   return 1; }
+                if (n > 80)  { cerr << "Error: -n must be <= 80\n";  return 1; }
                 break;
             case 's':
                 s = atoi(optarg);
-                if (s <= 0) { cerr << "Error: -s must be > 0\n"; return 1; }
+                if (s <= 0)  { cerr << "Error: -s must be > 0\n";   return 1; }
+                if (s > 15)  { cerr << "Error: -s must be <= 15\n";  return 1; }
                 break;
             case 't':
                 t = atof(optarg);
@@ -1253,4 +1282,4 @@ int main(int argc, char* argv[]) {
 
     cleanup();
     return 0;
-
+}
