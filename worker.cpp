@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
         reply.mtype = 1;      // oss receives replies on message type 1
         reply.index = index;
         reply.granted = -1;
-        reply.address = -1;
+        reply.address = 0;  // unused on terminate path
 
         if (reached(clk->seconds, clk->nanoseconds, endSec, endNano)) {
             reply.action = ACTION_TERMINATE;
@@ -107,9 +107,25 @@ int main(int argc, char* argv[]) {
             shmdt(clk);
             return 1;
         }
+
+        // Wait for oss to acknowledge the memory access. oss sends the ack
+        // once the page is in a frame (immediately on hit, after 14ms I/O on
+        // fault). Without this explicit receive, the next loop iteration would
+        // consume the ack as a dispatch token and send a spurious terminate.
+        Message ack;
+        memset(&ack, 0, sizeof(ack));
+        if (msgrcv(msgid, &ack, sizeof(Message) - sizeof(long), getpid(), 0) == -1) {
+            if (errno == EIDRM || errno == EINTR) {
+                shmdt(clk);
+                return 0;
+            }
+            cerr << "Worker ack msgrcv failed: " << strerror(errno) << "\n";
+            shmdt(clk);
+            return 1;
+        }
+        // ack.action == 999 and ack.granted == 1 means access was completed.
     }
 
     shmdt(clk);
     return 0;
 }
-
