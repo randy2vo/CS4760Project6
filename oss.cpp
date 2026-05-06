@@ -562,7 +562,9 @@ static void terminateProcess(int idx, int& activeChildren) {
             g_table[idx].localPid, g_clk->seconds, g_clk->nanoseconds, avg);
 
     releaseProcessFrames(idx);
-    waitpid(g_table[idx].pid, nullptr, 0);
+    // Use WNOHANG to avoid blocking if the worker hasn't exited yet;
+    // reapExitedChildren() will catch it on a future iteration.
+    waitpid(g_table[idx].pid, nullptr, WNOHANG);
     clearPCB(idx);
     activeChildren--;
 }
