@@ -1,0 +1,207 @@
+Name: Randy Vo
+Date: 05-05-2026
+Environment: opsys (Linux), vim
+Project 6 – Memory Management / FIFO Page Replacement
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Description:
+
+This project simulates memory management inside an operating system using paging and FIFO page replacement.
+
+The oss program acts as the operating system simulator. It maintains a simulated system clock in shared memory using seconds and nanoseconds. The system creates worker processes and manages communication using System V message queues.
+
+Each process has a page table containing 16 pages because each process has 16KB of logical memory and the page size is 1KB. The system itself contains 64 physical memory frames representing 64KB of total system memory.
+
+Worker processes repeatedly generate random memory addresses and request either a memory read or memory write. Requests are sent to oss through the message queue.
+
+When oss receives a request, it determines the page number by dividing the address by 1024. If the page already exists in a frame, the request is granted immediately and the clock advances by 100 nanoseconds.
+
+If the page is not currently loaded into memory, a page fault occurs. The process becomes blocked while the page is loaded from the simulated disk device. Each disk operation takes 14 milliseconds.
+
+If all frames are already occupied, oss uses the FIFO page replacement algorithm to select the oldest frame currently in memory for eviction. If the evicted frame has its dirty bit set, additional simulated disk write time is added before replacement.
+
+The frame table tracks:
+
+* Whether the frame is occupied
+* The dirty bit
+* Which process owns the frame
+* Which page is stored in the frame
+
+The simulation periodically prints:
+
+* Process table
+* Blocked queue
+* Frame table
+* Page tables
+* Current memory layout
+
+The simulation terminates after:
+
+* All requested worker processes finish execution
+* Or more than 5 real-time seconds have passed
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+FIFO Page Replacement:
+
+The FIFO page replacement algorithm selects the frame that has been in memory the longest.
+
+A queue is maintained containing the order that frames were filled. When memory becomes full:
+
+* The oldest frame is removed from the queue
+* The corresponding page is evicted
+* The new page is loaded into that frame
+* The frame is added back to the end of the FIFO queue
+
+Stale queue entries are skipped to avoid invalid frame references after process termination.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Dirty Bit Handling:
+
+Each frame contains a dirty bit.
+
+The dirty bit is:
+
+* Initially set to 0 when a page enters memory
+* Set to 1 whenever a write occurs to that page
+
+If a dirty frame must be replaced:
+
+* Additional disk write-back time is added to the simulated clock
+* This simulates the cost of writing modified data back to disk before eviction
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Soft Deadlock Prevention:
+
+If all active processes become blocked waiting for disk I/O:
+
+* oss advances the simulated clock directly to the next request completion time
+* This prevents the system from stalling indefinitely
+
+The blocked queue is serviced sequentially to simulate a single disk device.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+How to compile:
+
+Type:
+
+make
+
+This compiles both oss and worker executables.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Example of how to run:
+
+./oss [-h] [-n proc] [-s simul] [-t timeLimitForChildren] [-i intervalToLaunch] [-f logfile]
+
+-h       Show help message and exit
+-n proc  Total number of worker processes to launch
+-s simul Maximum number of workers allowed simultaneously
+-t secs  Simulated runtime limit for each worker
+-i secs  Minimum interval between worker launches
+-f file  Log file name
+
+Example:
+
+./oss -n 5 -s 3 -t 4 -i 0.5 -f log.txt
+
+This launches:
+
+* 5 total workers
+* No more than 3 running simultaneously
+* Each process running up to 4 simulated seconds
+* At least 0.5 simulated seconds between launches
+* Output written to log.txt and screen
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Statistics Collected:
+
+At termination, oss reports:
+
+* Total memory requests
+* Total reads
+* Total writes
+* Total page faults
+* Page fault percentage
+* Average effective memory access time
+
+Each process also tracks:
+
+* Number of memory accesses
+* Average memory access time
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Problems Encountered:
+
+* Simulating realistic paging behavior while still advancing the simulated clock correctly
+
+* Preventing stale FIFO queue entries after processes terminated and released frames
+
+* Handling blocked processes waiting for disk I/O while avoiding soft deadlock situations
+
+* Correctly implementing sequential disk access timing so only one page fault request is serviced at a time
+
+* Ensuring dirty-bit handling properly adds additional write-back time during page replacement
+
+* Managing cleanup of shared memory and message queues when the program exits unexpectedly
+
+Commands used for manual cleanup:
+
+ipcs
+ipcrm -m <shmid>
+ipcrm -q <msgid>
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Version Control:
+
+Used git for version control. Commits were made regularly throughout development.
+
+To view commit history:
+
+git log
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Generative AI used: ChatGPT and Claude.ai
+
+Prompts used:
+
+* Walk me through implementing FIFO page replacement
+* Explain dirty-bit optimization
+* Explain how paging works in operating systems
+* Describe this line of code
+* Help debug page-fault timing behavior
+
+Summary:
+
+ChatGPT was helpful for understanding paging concepts, FIFO replacement behavior, and System V IPC usage. Claude.ai helped explain design structure and debugging strategies.
+
+All generated code and explanations were reviewed manually to ensure full understanding of the implementation rather than blindly copying code.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Extra:
+
+* If -s is greater than -n, then -s becomes at most -n
+* Negative values are rejected
+* Default execution with no arguments:
+
+  ./oss
+
+Defaults to:
+
+* -n 1
+* -s 1
+* -t 1
+* -i 0.1
+
+A shared header file (shared.h) was used to store shared structures and constants, improving readability and reducing code duplication.
+
