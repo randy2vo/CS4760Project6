@@ -1003,7 +1003,7 @@ int main(int argc, char* argv[]) {
     // ── Default CLI parameter values ──────────────────────────────────────
     int    n        = 1;       // total processes to launch
     int    s        = 1;       // max simultaneously active
-    double t        = 2.0;     // simulated lifetime per worker (seconds)
+    double t        = 1.0;     // simulated lifetime per worker (seconds)
     double interval = 0.1;     // simulated interval between launches (seconds)
     string logFilename = "log.txt";
 
@@ -1253,4 +1253,4 @@ int main(int argc, char* argv[]) {
 
     cleanup();
     return 0;
-}
+
