@@ -139,12 +139,6 @@ static bool timeGTE(unsigned int sA, unsigned int nA,
     return (sA > sB) || (sA == sB && nA >= nB);
 }
 
-static void addNsToCurrent(unsigned int addNS, unsigned int& outS, unsigned int& outNS) {
-    outS = g_clk->seconds;
-    outNS = g_clk->nanoseconds + addNS;
-    normalizeTime(outS, outNS);
-}
-
 static unsigned int secondsPart(double x) {
     if (x <= 0.0) return 0;
     return (unsigned int)floor(x);
@@ -485,7 +479,26 @@ static void blockForPageFault(int idx, int address, int action) {
     req.processIndex = idx;
     req.address = address;
     req.action = action;
-    addNsToCurrent(DISK_ACCESS_NS, req.readySeconds, req.readyNano);
+
+    // Sequential disk device: each new fault queues BEHIND the last one.
+    // readyTime = max(now, tail_ready_time) + 14ms.
+    // This ensures only one page fault is "in service" at a time, matching
+    // the spec: "The request at the head of the queue is fulfilled once the
+    // clock has advanced by disk read/write time since the time the request
+    // was found at the head of the queue."
+    unsigned int baseS, baseNS;
+    if (!g_blockedQueue.empty()) {
+        // Start this I/O after the last queued request finishes
+        const BlockedRequest& tail = g_blockedQueue.back();
+        baseS  = tail.readySeconds;
+        baseNS = tail.readyNano;
+    } else {
+        baseS  = g_clk->seconds;
+        baseNS = g_clk->nanoseconds;
+    }
+    req.readySeconds = baseS;
+    req.readyNano    = baseNS + DISK_ACCESS_NS;
+    normalizeTime(req.readySeconds, req.readyNano);
 
     g_blockedQueue.push_back(req);
     g_totalMemoryAccessTimeNs += DISK_ACCESS_NS;
