@@ -1,16 +1,3 @@
-
-/*
- * Author: Randy Vo
- * Date: May 2026
- * Course: CS 4760 - Operating Systems
- * Assignment 6 - Memory Management
- *
- * worker.cpp
- * User process for Project 6. The worker waits for oss to dispatch it,
- * checks whether its lifetime has expired, and otherwise sends either a
- * read or write request for a random logical address in its 16 KB space.
- */
-
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
