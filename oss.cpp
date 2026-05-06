@@ -1,24 +1,3 @@
-/*
- * Author: Randy Vo
- * Date: May 2026
- * Course: CS 4760 - Operating Systems
- * Assignment 6 - Memory Management / FIFO Page Replacement
- *
- * oss.cpp
- * Main operating system simulator. This version converts the Project 5
- * resource-manager/deadlock code into the Project 6 memory-manager simulator.
- *
- * Expected shared.h updates for Project 6:
- *   - SimClock { unsigned int seconds; unsigned int nanoseconds; }
- *   - Message should contain at least:
- *       long mtype;
- *       int index;        // PCB slot
- *       int action;       // 0 terminate, 1 read, 2 write, 999 dispatch/ack
- *       int address;      // logical address requested by worker
- *       int granted;      // optional ack/status field
- *   - Constants may be in shared.h, but fallbacks are provided below.
- */
-
 #include <iostream>
 #include <iomanip>
 #include <string>
