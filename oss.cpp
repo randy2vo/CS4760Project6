@@ -53,8 +53,10 @@ using namespace std;
 #define BILLION 1000000000U
 #endif
 
+// Clock incremented 1000 ns (1 µs) per loop tick so the 14 ms disk-I/O delay
+// spans many iterations and the blocking simulation is meaningful.
 #ifndef CLOCK_INCREMENT_NS
-#define CLOCK_INCREMENT_NS 10000000U
+#define CLOCK_INCREMENT_NS 1000U
 #endif
 
 #ifndef PAGE_SIZE
@@ -297,7 +299,9 @@ static int chooseVictimFrameFIFO() {
             return f;
         }
     }
-    return 0; // should only happen if bookkeeping broke and all frames are occupied
+    // FIFO queue exhausted with no occupied frame found — return -1 so the
+    // caller can detect and handle the error instead of silently evicting frame 0.
+    return -1;
 }
 
 static void mapPageIntoFrame(int idx, int page, int frame, bool isWrite) {
@@ -384,6 +388,11 @@ static void printProcessTable() {
     }
 
     printBlockedList();
+
+    // Memory layout header appears just before the frame/page table output
+    // to match the spec's example format.
+    logBoth("\nCurrent memory layout at time %u:%u is:\n",
+            g_clk->seconds, g_clk->nanoseconds);
     printFrameTable();
     printPageTables();
     logBoth("\n");
@@ -420,6 +429,14 @@ static void serviceReadyBlockedRequests() {
 
                 if (frame == -1) {
                     frame = chooseVictimFrameFIFO();
+                    // Guard: if FIFO returned -1, bookkeeping is broken — skip
+                    // this request rather than silently corrupting frame 0.
+                    if (frame == -1) {
+                        logBoth("oss: ERROR no victim frame available for P%d page %d; deferring\n",
+                                g_table[idx].localPid, page);
+                        ++it;
+                        continue;
+                    }
                     dirtyVictim = g_frames[frame].dirty != 0;
                     logBoth("oss: Clearing frame %d and swapping in P%d page %d\n",
                             frame, g_table[idx].localPid, page);
@@ -609,7 +626,7 @@ static void reapExpiredBlockedProcesses(int& activeChildren) {
 int main(int argc, char* argv[]) {
     signal(SIGINT, signal_handler);
     signal(SIGALRM, signal_handler);
-    alarm(60); // Safety cleanup if something goes wrong. Project 6 stops launching after 5 real seconds.
+    alarm(5);  // Hard real-time kill after 5 seconds per spec; prevents hangs.
 
     srand((unsigned int)(time(nullptr) ^ getpid()));
 
@@ -823,7 +840,6 @@ int main(int argc, char* argv[]) {
         addToClock(CLOCK_INCREMENT_NS);
 
         if (timeGTE(g_clk->seconds, g_clk->nanoseconds, nextPrintS, nextPrintNS)) {
-            logBoth("Current memory layout at time %u:%u is:\n", g_clk->seconds, g_clk->nanoseconds);
             printProcessTable();
             nextPrintS = g_clk->seconds;
             nextPrintNS = g_clk->nanoseconds + 500000000U;
@@ -849,4 +865,3 @@ int main(int argc, char* argv[]) {
     cleanup();
     return 0;
 }
-
