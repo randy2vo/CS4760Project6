@@ -736,6 +736,7 @@ static void serviceReadyBlockedRequests() {
 
                 // Send ack so the worker can make its next memory request
                 sendAckToProcess(idx);
+		addToClock(MEMORY_ACCESS_NS);
                 it = g_blockedQueue.erase(it);
                 changed = true;
             } else {
